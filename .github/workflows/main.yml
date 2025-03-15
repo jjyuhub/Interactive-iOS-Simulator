@@ -43,7 +43,7 @@ jobs:
           cat vnc_url.txt
 
       - name: Upload VNC URL as Artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: vnc-url
           path: vnc_url.txt
