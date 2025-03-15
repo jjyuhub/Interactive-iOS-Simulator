@@ -1,0 +1,49 @@
+name: Interactive iOS Simulator
+
+on: [push]
+
+jobs:
+  ios-vnc-stream:
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install and Start Virtual Display
+        run: |
+          brew install xquartz
+          sudo Xvfb :99 -screen 0 1280x1024x24 &
+
+      - name: Set Up macOS VNC Server
+        run: |
+          sudo /System/Library/CoreServices/RemoteManagement/ARDAgent.app/Contents/Resources/kickstart \
+            -activate -configure -access -on -restart -agent -privs -all
+          sudo defaults write /Library/Preferences/com.apple.RemoteManagement VNCAlwaysStart -bool true
+          echo "my_secret_vnc_password" | perl -we 'print crypt(<STDIN>, "VN")' > /etc/vncpasswd
+          sudo chmod 600 /etc/vncpasswd
+          sudo defaults write /Library/Preferences/com.apple.RemoteManagement VNCPassword -data $(xxd -p /etc/vncpasswd)
+          sudo launchctl load /System/Library/LaunchDaemons/com.apple.screensharing.plist
+
+      - name: Boot iOS Simulator
+        run: |
+          xcrun simctl boot "iPhone 14"
+          open -a Simulator
+
+      - name: Install and Start ngrok
+        run: |
+          brew install ngrok/ngrok/ngrok
+          ngrok authtoken ${{ secrets.NGROK_AUTH_TOKEN }}
+          ngrok tcp 5900 &
+
+      - name: Get ngrok Public URL
+        run: |
+          sleep 5
+          curl -s http://localhost:4040/api/tunnels | jq -r '.tunnels[0].public_url' > vnc_url.txt
+          cat vnc_url.txt
+
+      - name: Upload VNC URL as Artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: vnc-url
+          path: vnc_url.txt
