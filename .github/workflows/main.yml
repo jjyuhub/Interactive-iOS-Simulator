@@ -10,15 +10,16 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Install RustDesk
+      - name: Install RustDesk (Headless Mode)
         run: |
           brew install --cask rustdesk
           
-          # Start RustDesk using the direct executable path
-          /Applications/RustDesk.app/Contents/MacOS/RustDesk &
+          # Start RustDesk in headless mode (no GUI prompts)
+          /Applications/RustDesk.app/Contents/MacOS/RustDesk --headless &
+
           sleep 10
           
-          # Wait for the log file to be created
+          # Wait for the RustDesk logs to appear
           until [ -f ~/Library/Application\ Support/RustDesk/logs/log.txt ]; do sleep 2; done
           
           # Extract the RustDesk connection ID
