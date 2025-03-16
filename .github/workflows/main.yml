@@ -1,4 +1,4 @@
-name: Remote iOS Simulator with NoMachine NX
+name: Remote iOS Simulator with NoMachine NX (Verbose Logging)
 
 on: [push]
 
@@ -10,17 +10,35 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Install NoMachine
+      - name: Install NoMachine (Verbose Logging)
         run: |
+          echo "🔍 Installing NoMachine..."
           brew install --cask nomachine
-          sudo /Applications/NoMachine.app/Contents/MacOS/nxserver --startup auto
-          sudo /Applications/NoMachine.app/Contents/MacOS/nxserver --status > nx_status.txt
+          
+          echo "📂 Listing installed files..."
+          find / -name "NoMachine*" 2>/dev/null | tee nomachine_installed_files.txt
 
-      - name: Upload NoMachine Server Status
+          echo "🔎 Searching for nxserver..."
+          NX_PATH=$(find / -name "nxserver" 2>/dev/null | head -n 1)
+
+          if [ -z "$NX_PATH" ]; then
+            echo "❌ NoMachine nxserver not found! Exiting..."
+            exit 1
+          else
+            echo "✅ Found NoMachine nxserver at: $NX_PATH"
+          fi
+
+          echo "🚀 Starting NoMachine server..."
+          sudo $NX_PATH --startup auto
+          sudo $NX_PATH --status | tee nx_status.txt
+
+      - name: Upload NoMachine Server Status and Logs
         uses: actions/upload-artifact@v4
         with:
           name: nomachine-status
-          path: nx_status.txt
+          path: |
+            nx_status.txt
+            nomachine_installed_files.txt
 
       - name: Install Xcode and Boot iOS Simulator
         run: |
