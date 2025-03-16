@@ -1,4 +1,4 @@
-name: Interactive iOS Simulator
+name: Interactive iOS Simulator with VNC
 
 on: [push]
 
@@ -17,12 +17,20 @@ jobs:
 
       - name: Set Up macOS VNC Server
         run: |
+          # Enable Remote Management (Screen Sharing)
           sudo /System/Library/CoreServices/RemoteManagement/ARDAgent.app/Contents/Resources/kickstart \
             -activate -configure -access -on -restart -agent -privs -all
+
+          # Set VNC password securely in a writeable location
+          VNC_PASS_FILE="/tmp/vncpasswd"
+          echo "my_secret_vnc_password" | perl -we 'print crypt(<STDIN>, "VN")' > $VNC_PASS_FILE
+          sudo chmod 600 $VNC_PASS_FILE
+
+          # Apply VNC password settings
           sudo defaults write /Library/Preferences/com.apple.RemoteManagement VNCAlwaysStart -bool true
-          echo "my_secret_vnc_password" | perl -we 'print crypt(<STDIN>, "VN")' > /etc/vncpasswd
-          sudo chmod 600 /etc/vncpasswd
-          sudo defaults write /Library/Preferences/com.apple.RemoteManagement VNCPassword -data $(xxd -p /etc/vncpasswd)
+          sudo defaults write /Library/Preferences/com.apple.RemoteManagement VNCPassword -data $(xxd -p $VNC_PASS_FILE)
+
+          # Restart macOS Screen Sharing (VNC)
           sudo launchctl load /System/Library/LaunchDaemons/com.apple.screensharing.plist
 
       - name: Boot iOS Simulator
@@ -43,7 +51,7 @@ jobs:
           cat vnc_url.txt
 
       - name: Upload VNC URL as Artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v3
         with:
           name: vnc-url
           path: vnc_url.txt
