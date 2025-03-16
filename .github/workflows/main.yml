@@ -30,8 +30,8 @@ jobs:
           sudo defaults write /Library/Preferences/com.apple.RemoteManagement VNCAlwaysStart -bool true
           sudo defaults write /Library/Preferences/com.apple.RemoteManagement VNCPassword -data $(xxd -p $VNC_PASS_FILE)
 
-          # Restart macOS Screen Sharing (VNC)
-          sudo launchctl load /System/Library/LaunchDaemons/com.apple.screensharing.plist
+          # Restart macOS Screen Sharing (VNC) using bootstrap
+          sudo launchctl bootstrap system /System/Library/LaunchDaemons/com.apple.screensharing.plist || echo "VNC service failed to start"
 
       - name: Boot iOS Simulator
         run: |
