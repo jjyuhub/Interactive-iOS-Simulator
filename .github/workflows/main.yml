@@ -1,57 +1,29 @@
-name: Interactive iOS Simulator with VNC
+name: Remote iOS Simulator with WebRTC
 
 on: [push]
 
 jobs:
-  ios-vnc-stream:
+  ios-webrtc-stream:
     runs-on: macos-latest
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Install and Start Virtual Display
-        run: |
-          brew install xquartz
-          sudo Xvfb :99 -screen 0 1280x1024x24 &
-
-      - name: Set Up macOS VNC Server
-        run: |
-          # Enable Remote Management (Screen Sharing)
-          sudo /System/Library/CoreServices/RemoteManagement/ARDAgent.app/Contents/Resources/kickstart \
-            -activate -configure -access -on -restart -agent -privs -all
-
-          # Set VNC password securely in a writeable location
-          VNC_PASS_FILE="/tmp/vncpasswd"
-          echo "my_secret_vnc_password" | perl -we 'print crypt(<STDIN>, "VN")' > $VNC_PASS_FILE
-          sudo chmod 600 $VNC_PASS_FILE
-
-          # Apply VNC password settings
-          sudo defaults write /Library/Preferences/com.apple.RemoteManagement VNCAlwaysStart -bool true
-          sudo defaults write /Library/Preferences/com.apple.RemoteManagement VNCPassword -data $(xxd -p $VNC_PASS_FILE)
-
-          # Restart macOS Screen Sharing (VNC) using bootstrap
-          sudo launchctl bootstrap system /System/Library/LaunchDaemons/com.apple.screensharing.plist || echo "VNC service failed to start"
-
       - name: Boot iOS Simulator
         run: |
           xcrun simctl boot "iPhone 14"
           open -a Simulator
 
-      - name: Install and Start ngrok
+      - name: Install RustDesk
         run: |
-          brew install ngrok/ngrok/ngrok
-          ngrok authtoken ${{ secrets.NGROK_AUTH_TOKEN }}
-          ngrok tcp 5900 &
-
-      - name: Get ngrok Public URL
-        run: |
+          brew install --cask rustdesk
+          rustdesk --password "my_secret_password" --relay-server "relay.rustdesk.io" &
           sleep 5
-          curl -s http://localhost:4040/api/tunnels | jq -r '.tunnels[0].public_url' > vnc_url.txt
-          cat vnc_url.txt
+          tail -f ~/.config/rustdesk/logs/*.log | grep -m 1 "ID" > rustdesk_id.txt
 
-      - name: Upload VNC URL as Artifact
+      - name: Upload RustDesk ID as Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: vnc-url
-          path: vnc_url.txt
+          name: rustdesk-id
+          path: rustdesk_id.txt
