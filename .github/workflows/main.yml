@@ -1,4 +1,4 @@
-name: Remote iOS Simulator with NoMachine NX (Verbose Logging)
+name: Remote iOS Simulator with NoMachine NX (Auto-Fix for iPhone 15+)
 
 on: [push]
 
@@ -40,20 +40,33 @@ jobs:
             nx_status.txt
             nomachine_installed_files.txt
 
-      - name: Install Xcode and Boot iOS Simulator
+      - name: Install Xcode and Boot iOS Simulator (Auto-Detect iPhone 15+)
         run: |
           sudo xcode-select --switch /Applications/Xcode.app
           xcodebuild -version
           sudo xcodebuild -license accept
           
-          # List available devices
-          xcrun simctl list devices
+          echo "📋 Listing available iOS devices..."
+          xcrun simctl list devices | tee available_devices.txt
           
-          # Boot the iOS Simulator (use exact device name from list)
-          xcrun simctl boot "iPhone 14" || echo "Simulator not found. Checking available devices..."
-          xcrun simctl list devices | grep 'Booted' || echo "No booted devices found."
+          # Find the first available iPhone (prefer iPhone 15, otherwise pick any)
+          DEVICE_ID=$(xcrun simctl list devices | grep -E "iPhone 15|iPhone 16|iPhone SE" | grep -Eo '[A-F0-9\-]+ \(Shutdown\)' | head -n 1 | awk '{print $1}')
+          
+          if [ -z "$DEVICE_ID" ]; then
+            echo "❌ No available iPhone simulators found! Exiting..."
+            exit 1
+          else
+            echo "✅ Booting simulator: $DEVICE_ID"
+            xcrun simctl boot "$DEVICE_ID"
+          fi
           
           open -a Simulator || echo "Failed to open simulator"
+
+      - name: Upload Available Devices Log
+        uses: actions/upload-artifact@v4
+        with:
+          name: available-devices
+          path: available_devices.txt
 
       - name: Install and Start ngrok (to expose NoMachine)
         run: |
