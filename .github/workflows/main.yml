@@ -13,9 +13,16 @@ jobs:
       - name: Install RustDesk
         run: |
           brew install --cask rustdesk
-          rustdesk --password "my_secret_password" --relay-server "relay.rustdesk.io" &
+          
+          # Start RustDesk properly
+          open -a RustDesk
           sleep 10
-          tail -f ~/.config/rustdesk/logs/*.log | grep -m 1 "ID" > rustdesk_id.txt
+          
+          # Wait for the log file to be created
+          until [ -f ~/Library/Application\ Support/RustDesk/logs/log.txt ]; do sleep 2; done
+          
+          # Extract the RustDesk connection ID
+          tail -f ~/Library/Application\ Support/RustDesk/logs/log.txt | grep -m 1 "ID" > rustdesk_id.txt
 
       - name: Upload RustDesk ID as Artifact
         uses: actions/upload-artifact@v4
@@ -31,7 +38,7 @@ jobs:
           
           # List available devices
           xcrun simctl list devices
-
+          
           # Boot the iOS Simulator (use exact device name from list)
           xcrun simctl boot "iPhone 14" || echo "Simulator not found. Checking available devices..."
           xcrun simctl list devices | grep 'Booted' || echo "No booted devices found."
