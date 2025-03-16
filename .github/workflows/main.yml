@@ -10,16 +10,11 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Boot iOS Simulator
-        run: |
-          xcrun simctl boot "iPhone 14"
-          open -a Simulator
-
       - name: Install RustDesk
         run: |
           brew install --cask rustdesk
           rustdesk --password "my_secret_password" --relay-server "relay.rustdesk.io" &
-          sleep 5
+          sleep 10
           tail -f ~/.config/rustdesk/logs/*.log | grep -m 1 "ID" > rustdesk_id.txt
 
       - name: Upload RustDesk ID as Artifact
@@ -27,3 +22,18 @@ jobs:
         with:
           name: rustdesk-id
           path: rustdesk_id.txt
+
+      - name: Install Xcode and Boot iOS Simulator
+        run: |
+          sudo xcode-select --switch /Applications/Xcode.app
+          xcodebuild -version
+          sudo xcodebuild -license accept
+          
+          # List available devices
+          xcrun simctl list devices
+
+          # Boot the iOS Simulator (use exact device name from list)
+          xcrun simctl boot "iPhone 14" || echo "Simulator not found. Checking available devices..."
+          xcrun simctl list devices | grep 'Booted' || echo "No booted devices found."
+          
+          open -a Simulator || echo "Failed to open simulator"
